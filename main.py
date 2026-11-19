@@ -1,30 +1,36 @@
 import os
-import logging
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-import google.generativeai as genai
+import threading
+from flask import Flask
+import telebot
 
-logging.basicConfig(level=logging.INFO)
+TOKEN = os.environ.get("BOT_TOKEN") or os.environ.get("TELEGRAM_TOKEN") or "حط_التوكن_هنا"
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+bot = telebot.TeleBot(TOKEN)
 
-genai.configure(api_key=GEMINI_KEY)
-model = genai.GenerativeModel("gemini-3.5-flash-lite")
+app = Flask(__name__)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("أهلا بيك! أنا LibyaAI Bot 🇱🇾 اسألني أي شي")
+@app.route('/')
+def home():
+    return "Bot is alive!"
 
-async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        response = model.generate_content(f"أنت مساعد ليبي ذكي، رد باللهجة الليبية البسيطة: {update.message.text}")
-        await update.message.reply_text(response.text)
-    except Exception as e:
-        print(f"GEMINI ERROR: {e}")
-        await update.message.reply_text(f"صار خطأ: {e}")
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.reply_to(message, "اهلا بيك في بوت ليبيا AI 🇱🇾\nابعتلي رسالة او صورة ونجاوبك")
+
+@bot.message_handler(content_types=['photo'])
+def photo(message):
+    bot.reply_to(message, "وصلتني الصورة ✅ توا بنشوفها ونرد عليك")
+
+@bot.message_handler(func=lambda m: True)
+def echo(message):
+    bot.reply_to(message, f"وصلتني رسالتك: {message.text}")
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
+threading.Thread(target=run_web, daemon=True).start()
 
 if __name__ == "__main__":
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat))
-    app.run_polling()
+    print("Bot started...")
+    bot.infinity_polling()
