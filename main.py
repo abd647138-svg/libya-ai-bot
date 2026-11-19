@@ -17,15 +17,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        prompt = update.message.text
-        response = model.generate_content(f"أنت مساعد ذكي ليبي، رد باللهجة الليبية البسيطة والمفهومة: {prompt}")
+        response = model.generate_content(f"أنت مساعد ليبي ذكي، رد باللهجة الليبية البسيطة: {update.message.text}")
         await update.message.reply_text(response.text)
     except Exception as e:
-        await update.message.reply_text("صار خطأ شوية، عاود المحاولة")
-        print(e)
+        print(f"GEMINI ERROR: {e}")
+        await update.message.reply_text(f"صار خطأ: {e}")
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat))
     app.run_polling()
