@@ -18,11 +18,11 @@ app = Flask(__name__)
 def home():
     return "Bot is Live"
 
-@bot.message_handler(commands=["start"])
+@bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(message, "اهلا بيك، انا بوت ليبيا AI، ابعتلي اي سؤال او صورة")
+    bot.reply_to(message, "هلا بيك! انا بوت ليبي 🇱🇾\nاسألني اي سؤال، ولا ابعتلي صورة.")
 
-@bot.message_handler(content_types=["text"])
+@bot.message_handler(content_types=['text'])
 def handle_text(message):
     try:
         bot.send_chat_action(message.chat.id, "typing")
@@ -30,9 +30,9 @@ def handle_text(message):
         bot.reply_to(message, response.text)
     except Exception as e:
         print("Text Error:", e)
-        bot.reply_to(message, "صار خطأ")
+        bot.reply_to(message, "صار خطأ، حاول مرة تانية")
 
-@bot.message_handler(content_types=["photo"])
+@bot.message_handler(content_types=['photo'])
 def handle_photo(message):
     try:
         bot.send_chat_action(message.chat.id, "typing")
@@ -41,7 +41,7 @@ def handle_photo(message):
         with open("temp.jpg", "wb") as f:
             f.write(downloaded)
         img = Image.open("temp.jpg")
-        response = model.generate_content(["اشرح هده الصورة بالتفصيل بالعربية", img])
+        response = model.generate_content(["اشرح هادي الصورة بالليبي", img])
         bot.reply_to(message, response.text)
     except Exception as e:
         print("Photo Error:", e)
@@ -49,10 +49,14 @@ def handle_photo(message):
 
 def run_bot():
     print("Bot started polling...")
-    bot.infinity_polling()
-
-threading.Thread(target=run_bot).start()
+    # هادي اهم نقطة، تمسح اي نسخة قديمة قبل ما تبدا
+    try:
+        bot.delete_webhook(drop_pending_updates=True)
+    except Exception as e:
+        print("Delete webhook error:", e)
+    bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
 
 if __name__ == "__main__":
+    threading.Thread(target=run_bot, daemon=True).start()
     port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
