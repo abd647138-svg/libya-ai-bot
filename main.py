@@ -1,36 +1,57 @@
 import os
 import threading
-from flask import Flask
 import telebot
+from flask import Flask
+import google.generativeai as genai
 
-TOKEN = os.environ.get("BOT_TOKEN") or os.environ.get("TELEGRAM_TOKEN") or "حط_التوكن_هنا"
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-bot = telebot.TeleBot(TOKEN)
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-1.5-flash")
 
+bot = telebot.TeleBot(TELEGRAM_TOKEN)
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot is alive!"
+    return "Bot is Live!"
 
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(message, "اهلا بيك في بوت ليبيا AI 🇱🇾\nابعتلي رسالة او صورة ونجاوبك")
 
+@bot.message_handler(content_types=['text'])
+def handle_text(message):
+    try:
+        bot.send_chat_action(message.chat.id, 'typing')
+        response = model.generate_content(f"جاوب باللهجة الليبية البسيطة والمفهومة: {message.text}")
+        bot.reply_to(message, response.text)
+    except Exception as e:
+        print(f"Error: {e}")
+        bot.reply_to(message, "صار خطأ، عاود جرب مرة تانية")
+
 @bot.message_handler(content_types=['photo'])
-def photo(message):
-    bot.reply_to(message, "وصلتني الصورة ✅ توا بنشوفها ونرد عليك")
+def handle_photo(message):
+    try:
+        bot.send_chat_action(message.chat.id, 'typing')
+        file_info = bot.get_file(message.photo[-1].file_id)
+        downloaded = bot.download_file(file_info.file_path)
+        with open("temp.jpg", "wb") as f:
+            f.write(downloaded)
+        img = {"mime_type": "image/jpeg", "data": downloaded}
+        response = model.generate_content(["اشرح شن في الصورة هادي باللهجة الليبية", img])
+        bot.reply_to(message, response.text)
+    except Exception as e:
+        print(f"Photo Error: {e}")
+        bot.reply_to(message, "ما قدرتش نشوف الصورة، جرب صورة تانية")
 
-@bot.message_handler(func=lambda m: True)
-def echo(message):
-    bot.reply_to(message, f"وصلتني رسالتك: {message.text}")
+def run_bot():
+    print("Bot started - polling...")
+    bot.infinity_polling()
 
-def run_web():
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
-
-threading.Thread(target=run_web, daemon=True).start()
+threading.Thread(target=run_bot).start()
 
 if __name__ == "__main__":
-    print("Bot started...")
-    bot.infinity_polling()
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
